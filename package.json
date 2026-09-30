@@ -1,0 +1,23 @@
+{
+  "name": "smartbuy-api",
+  "version": "1.0.0",
+  "description": "API REST para el proyecto SmartBuy",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "body-parser": "^2.3.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "mongoose": "^9.9.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
