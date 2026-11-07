@@ -6,27 +6,51 @@ const productosRoutes = require('./routes/productos');
 
 const app = express();
 
-// Middlewares
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Rutas de productos
-app.use('/api/productos', productosRoutes);
+// Reutilizar la conexion entre peticiones y esperar antes de consultar datos.
+let conexionPendiente;
+async function conectarMongoDB() {
+    if (mongoose.connection.readyState === 1) return;
+    if (!conexionPendiente) {
+        const uri = process.env.MONGODB_URI ||
+            (!process.env.VERCEL ? 'mongodb://127.0.0.1:27017/smartbuy' : '');
+        if (!uri) throw new Error('Falta configurar MONGODB_URI');
+        conexionPendiente = mongoose.connect(uri, {
+            serverSelectionTimeoutMS: 10000,
+            maxPoolSize: 5
+        }).catch(error => {
+            conexionPendiente = undefined;
+            throw error;
+        });
+    }
+    await conexionPendiente;
+}
 
-// Conexión a MongoDB
-mongoose.connect('mongodb://127.0.0.1:27017/smartbuy')
-    .then(() => console.log('Conectado a MongoDB'))
-    .catch(error => console.log('Error al conectar MongoDB:', error));
-
-// Ruta de prueba
 app.get('/', (req, res) => {
     res.send('API SmartBuy funcionando correctamente');
 });
 
-// Iniciar servidor
-const PORT = 3000;
+app.use('/api/productos', async (req, res, next) => {
+    try {
+        await conectarMongoDB();
+        next();
+    } catch (error) {
+        // No registrar la URI ni credenciales en mensajes publicos.
+        console.error('No se pudo conectar a MongoDB:', error.name);
+        res.status(503).json({
+            mensaje: 'Base de datos no disponible. Revisa la configuracion de conexion.'
+        });
+    }
+}, productosRoutes);
 
-app.listen(PORT, () => {
-    console.log(`Servidor SmartBuy ejecutándose en puerto ${PORT}`);
-});
+// Vercel usa la aplicacion exportada; npm start sigue funcionando en local.
+module.exports = app;
+if (require.main === module && !process.env.VERCEL) {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`Servidor SmartBuy ejecutandose en puerto ${PORT}`);
+    });
+}
